@@ -4,7 +4,7 @@ const User = require('../models/User');
 const RevokedToken = require('../models/RevokedToken');
 const { audit } = require('../services/auditService');
 const { issueToken, decodeToken } = require('../services/tokenService');
-const { nodeEnv } = require('../config/env');
+const { mfaDisplayOtpEnabled } = require('../config/env');
 
 const PUBLIC_ROLES = ['QUESTION_SETTER', 'REVIEWER', 'SECURITY_OFFICER', 'EXAM_AUTHORITY'];
 const safeUser = (user) => ({ id: user._id, name: user.name, email: user.email, role: user.role, mfaEnabled: user.mfaEnabled, isActive: user.isActive, createdAt: user.createdAt, lastLoginAt: user.lastLoginAt });
@@ -16,7 +16,7 @@ async function createOtp(user, request, action) {
   user.mfaExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
   await user.save();
   await audit(request, action, { userId: user._id, role: user.role });
-  if (nodeEnv === 'development') console.log(`Development OTP for ${user.email}: ${otp}`);
+  return otp;
 }
 
 async function register(request, response, next) {
@@ -40,8 +40,8 @@ async function login(request, response, next) {
     const user = await User.findOne({ email }).select('+passwordHash +mfaCodeHash +mfaExpiresAt');
     const valid = user && user.isActive && validPassword(password) && await bcrypt.compare(password, user.passwordHash);
     if (!valid) { await audit(request, 'LOGIN_FAILED', { userId: user?._id, role: user?.role, metadata: { email } }); return response.status(401).json({ success: false, message: 'Invalid email or password.' }); }
-    await createOtp(user, request, 'LOGIN_OTP_ISSUED');
-    return response.status(200).json({ success: true, message: 'OTP verification required.', challengeId: user._id.toString() });
+    const otp = await createOtp(user, request, 'LOGIN_OTP_ISSUED');
+    return response.status(200).json({ success: true, message: 'OTP verification required.', challengeId: user._id.toString(), ...(mfaDisplayOtpEnabled() ? { demoOtp: otp } : {}) });
   } catch (error) { next(error); }
 }
 async function verifyOtp(request, response, next) {
@@ -61,8 +61,8 @@ async function resendOtp(request, response, next) {
   try {
     const user = await User.findById(request.body.challengeId).select('+mfaCodeHash +mfaExpiresAt');
     if (!user || !user.isActive) return response.status(400).json({ success: false, message: 'Login challenge is unavailable.' });
-    await createOtp(user, request, 'OTP_RESENT');
-    return response.json({ success: true, message: 'A new OTP has been generated.' });
+    const otp = await createOtp(user, request, 'OTP_RESENT');
+    return response.json({ success: true, message: 'A new OTP has been generated.', ...(mfaDisplayOtpEnabled() ? { demoOtp: otp } : {}) });
   } catch (error) { next(error); }
 }
 async function logout(request, response, next) {

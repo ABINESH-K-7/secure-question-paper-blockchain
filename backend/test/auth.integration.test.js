@@ -43,6 +43,23 @@ test('MFA blocks wrong OTP, accepts correct OTP once, and protects /me', async (
   assert.equal((await request('/auth/me', { headers: { authorization: 'Bearer invalid-token' } })).status, 401);
   const stored = await User.findOne({ email }).select('+passwordHash +mfaCodeHash'); assert.ok(stored.passwordHash.startsWith('$2')); assert.equal(stored.mfaCodeHash, undefined);
 });
+test('demo OTP is returned only when the backend demo mode is enabled', async () => {
+  const email = 'phase2-test-demo-otp@example.com';
+  await request('/auth/register', { method: 'POST', body: JSON.stringify({ name: 'Demo OTP Test', email, password: 'Password123', role: 'QUESTION_SETTER' }) });
+  const previousDemoMode = process.env.MFA_DISPLAY_OTP; const previousRandomInt = crypto.randomInt;
+  try {
+    process.env.MFA_DISPLAY_OTP = 'false';
+    const hidden = await request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: 'Password123' }) });
+    assert.equal(hidden.status, 200); assert.equal(hidden.body.demoOtp, undefined);
+    const otps = [123456, 654321]; crypto.randomInt = () => otps.shift(); process.env.MFA_DISPLAY_OTP = 'true';
+    const displayed = await request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: 'Password123' }) });
+    assert.equal(displayed.status, 200); assert.match(displayed.body.demoOtp, /^[0-9]{6}$/); assert.equal(displayed.body.demoOtp, '123456');
+    const resent = await request('/auth/resend-otp', { method: 'POST', body: JSON.stringify({ challengeId: displayed.body.challengeId }) });
+    assert.equal(resent.status, 200); assert.match(resent.body.demoOtp, /^[0-9]{6}$/); assert.equal(resent.body.demoOtp, '654321');
+    assert.equal((await request('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ challengeId: displayed.body.challengeId, otp: displayed.body.demoOtp }) })).status, 401);
+    assert.equal((await request('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ challengeId: displayed.body.challengeId, otp: resent.body.demoOtp }) })).status, 200);
+  } finally { crypto.randomInt = previousRandomInt; process.env.MFA_DISPLAY_OTP = previousDemoMode; }
+});
 test('expired OTP and replaced OTP are rejected', async () => {
   const email = 'phase2-test-otp@example.com';
   await request('/auth/register', { method: 'POST', body: JSON.stringify({ name: 'OTP Test', email, password: 'Password123', role: 'QUESTION_SETTER' }) });

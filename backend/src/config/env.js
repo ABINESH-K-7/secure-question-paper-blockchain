@@ -8,6 +8,7 @@ module.exports = {
   port: Number(process.env.PORT) || 5000,
   mongoUri: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/secure_question_papers',
   nodeEnv: process.env.NODE_ENV || 'development',
+  mfaDisplayOtpEnabled: () => process.env.MFA_DISPLAY_OTP === 'true',
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
   storageProvider: process.env.STORAGE_PROVIDER || 'local',

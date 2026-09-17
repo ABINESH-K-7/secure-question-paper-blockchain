@@ -1,160 +1,247 @@
 # Secure Cloud-Based Question Paper Management System Using Blockchain and Encryption
 
-## 1. Project Title
+## Project Overview
 
-Secure Cloud-Based Question Paper Management System Using Blockchain and Encryption
+This application securely creates, reviews, approves, schedules, and releases examination question papers. Examination papers need confidentiality (no early access) and integrity (no unnoticed changes). The backend encrypts uploaded PDFs with AES-256-GCM, calculates SHA-256 over the encrypted artifact, stores it privately, and releases it only after server-side authorization and timing checks.
 
-## 2. Project Overview
+Question Setter → Reviewer → Security Officer → Exam Authority → **LOCKED** → scheduled release → Exam Centre. MFA, JWT, RBAC, encryption, hashing, private storage, audit logs, optional AWS KMS/S3, and optional blockchain integrity anchoring work together. The frontend is not a security boundary: the backend independently controls authorization, storage, encryption, integrity, and release time.
 
-This web application creates, protects, reviews, approves, schedules, and securely releases examination question papers. The React frontend communicates with an Express and MongoDB backend. PDFs are encrypted before storage, protected with a SHA-256 integrity hash, and released only after server-side authorization and validation.
+## Problem Statement
 
-## 3. Problem Statement
+Unauthorized access and uncontrolled file sharing can leak a paper. Tampering can change its contents, and informal approvals make accountability difficult. A solution needs private encrypted storage, controlled multi-level approval, auditable actions, tamper detection, and release-time access control.
 
-Examination papers must remain confidential before an authorised release time while also being protected from tampering. Manual handling and insecure file sharing can expose papers or make it difficult to prove that an artifact is unchanged. This project provides a controlled, auditable workflow with separate responsibilities for each participant.
+## Objectives
 
-## 4. Objectives
+- Secure PDF upload and encryption at rest.
+- SHA-256 integrity verification before decryption.
+- RBAC, MFA, JWT sessions, and logout-token revocation.
+- Multi-level approval, locking, scheduled release, and Exam Centre access.
+- Private local storage and optional AWS S3/KMS storage.
+- Optional blockchain-based integrity anchoring, audit logging, and security monitoring.
 
-- Protect uploaded PDF question papers using encryption at rest.
-- Enforce a staged approval workflow with role-based access control.
-- Verify encrypted-artifact integrity before protected access.
-- Optionally anchor and verify integrity metadata on a blockchain.
-- Schedule release after final approval and allow only an Exam Centre to obtain the PDF at the permitted time.
-- Record security-sensitive activity in audit logs.
+## Main Features
 
-## 5. Main Features
+- Registration for permitted roles; login, OTP MFA, JWT, and logout revocation.
+- Role-specific dashboards, Admin user management, and Admin-created Exam Centre accounts.
+- Draft creation, PDF upload validation, AES-256-GCM encryption, SHA-256 hashing, and private encrypted storage.
+- Reviewer, Security Officer, and Exam Authority claim/approve/reject stages with conflict-of-interest checks.
+- Final locking, one-time release scheduling, safe Exam Centre metadata listing, and secure release.
+- Optional AWS S3/KMS and blockchain integrity verification.
+- Audit logs, tamper detection, and fail-closed security behavior.
 
-- JWT authentication with MFA OTP verification and logout token revocation.
-- Six role-specific workspaces and backend RBAC enforcement.
-- PDF upload, private encrypted storage, SHA-256 verification, and secure download/release paths.
-- Reviewer, Security Officer, and Exam Authority approval stages with conflict-of-interest controls.
-- Final paper locking and scheduled release.
-- Optional private AWS S3 storage with AWS KMS envelope encryption.
-- Optional blockchain anchoring and release-time blockchain integrity verification.
-- Admin dashboard, user status management, Exam Centre creation, and audit-log viewing.
-
-## 6. User Roles
+## User Roles
 
 | Role | Responsibility |
 | --- | --- |
-| `ADMIN` | Manages users, Exam Centre accounts, account status, dashboard data, and audit logs. |
-| `QUESTION_SETTER` | Creates drafts, uploads PDFs, submits papers, and revises eligible rejected papers. |
-| `REVIEWER` | Claims eligible submissions and approves or rejects review assignments. |
-| `SECURITY_OFFICER` | Performs the security approval stage. |
-| `EXAM_AUTHORITY` | Performs final approval, locks papers, and schedules release. |
-| `EXAM_CENTER` | Lists releasable metadata and accesses a released PDF through the secure release endpoint. |
+| `ADMIN` | Manages users, account status, Exam Centre accounts, dashboards, audit logs, and security activity. |
+| `QUESTION_SETTER` | Creates drafts, uploads/submits PDFs, tracks status, and revises eligible rejected papers. |
+| `REVIEWER` | Claims eligible submissions and approves/rejects review assignments. |
+| `SECURITY_OFFICER` | Performs the security review and approval stage. |
+| `EXAM_AUTHORITY` | Performs final approval, locking, and release scheduling. |
+| `EXAM_CENTER` | Views safe metadata and requests a paper only through secure release. |
 
-## 7. Technologies and Tools Used
+Public registration is allowed only for `QUESTION_SETTER`, `REVIEWER`, `SECURITY_OFFICER`, and `EXAM_AUTHORITY`. `ADMIN` and `EXAM_CENTER` cannot register publicly. Only Admin creates Exam Centre accounts; the backend enforces this rule and does not trust a frontend role value.
 
-- Frontend: React, Vite, React Router, Axios
-- Backend: Node.js, Express, Mongoose, MongoDB
-- Security: bcrypt, JSON Web Tokens, Helmet, rate limiting, AES-256-GCM, SHA-256
-- Cloud mode: AWS S3 and AWS KMS SDKs
-- Blockchain: Solidity, Hardhat, Ethers
-- Testing: Node.js built-in test runner
+## Technologies and Tools
 
-## 8. System Architecture / Workflow
+| Area | Technologies |
+| --- | --- |
+| Frontend | React, Vite, React Router, Axios, CSS |
+| Backend | Node.js, Express, MongoDB, Mongoose |
+| Security | bcrypt, JWT, OTP MFA, Helmet, rate limiting, AES-256-GCM, SHA-256 |
+| Cloud | AWS S3, AWS KMS, AWS SDK |
+| Blockchain | Solidity, Hardhat, Ethers.js |
+| Testing | Node.js built-in test runner |
 
-```text
-Question Setter
-  → Upload Question Paper
-  → AES-256-GCM Encryption
-  → SHA-256 Integrity Hash
-  → Submit
-  → Reviewer Approval
-  → Security Officer Approval
-  → Exam Authority Final Approval
-  → LOCKED
-  → Schedule Release
-  → Exam Centre
-  → Scheduled Time
-  → SHA-256 Verification
-  → Blockchain Verification (when enabled)
-  → KMS / Key Protection (when applicable)
-  → AES-256-GCM Decryption
-  → Secure PDF Release
-```
-
-The frontend is a client interface only. All access checks, lifecycle transitions, storage access, cryptographic operations, and release decisions are made by the backend.
-
-## 9. Security Architecture
-
-- Passwords and MFA OTPs are hashed with bcrypt; plaintext values are not stored in user records.
-- Login requires email/password validation followed by OTP verification before a JWT is issued.
-- JWT authentication, active-account checks, token revocation, and role checks are enforced by backend middleware.
-- Each uploaded PDF is encrypted with AES-256-GCM using a fresh per-paper data-encryption key and IV.
-- SHA-256 is calculated over the stored ciphertext and checked before protected decryption.
-- Local mode wraps the per-paper key with `QUESTION_PAPER_MASTER_KEY`; S3 mode uses AWS KMS-generated encrypted key material.
-- The release endpoint validates role, locked state, schedule, ciphertext hash, and blockchain metadata when blockchain verification is enabled before it decrypts and returns a PDF.
-- Audit events record security-relevant actions without storing PDFs, plaintext, passwords, tokens, or keys.
-
-Blockchain stores integrity/audit metadata only. It does **not** store the PDF, plaintext, AES keys, DEKs, AWS credentials, application secrets, or blockchain private keys.
-
-## 10. Project Structure
+## System Architecture
 
 ```text
-.
-├── frontend/                 React + Vite user interface
-│   └── src/                  Layouts, pages, authentication context, and API client
-├── backend/                  Express API and MongoDB application
-│   ├── src/                  Controllers, middleware, models, routes, services, and scripts
-│   └── test/                 Backend integration and regression tests
-├── blockchain/               Hardhat contract, deployment script, and contract tests
-├── .env.example              Safe environment-variable template
-├── package.json              Root scripts and dependencies
-└── README.md                 Project documentation
+User → React Frontend → Express REST API
+                         ↓
+              Authentication + MFA + RBAC
+                         ↓
+ MongoDB ← Encryption / Integrity Services → Local Storage OR private AWS S3 + KMS
+                         ↓
+      Blockchain Integrity Registry (when enabled)
+                         ↓
+ Approval Workflow → Scheduled Release → Exam Centre → Secure PDF Release
 ```
 
-## 11. Installation Requirements
+Blockchain does not store PDFs. It is an integrity/audit layer only.
+
+## Complete Question Paper Workflow
+
+1. A Question Setter registers using an allowed role and completes MFA login.
+2. The setter creates a draft and uploads a PDF.
+3. The backend validates the PDF type, `%PDF-` signature, and configured size limit.
+4. A fresh per-paper AES-256-GCM key and IV encrypt the PDF.
+5. SHA-256 is calculated over the persisted ciphertext; encrypted storage metadata is saved in MongoDB.
+6. The setter submits the paper.
+7. A Reviewer claims and approves/rejects it; self-review is blocked.
+8. A Security Officer claims the reviewer-approved paper and approves/rejects it.
+9. An Exam Authority claims the security-approved paper, completes final approval, and locks it.
+10. With blockchain mode enabled, integrity metadata is anchored after locking.
+11. The locking Exam Authority schedules release.
+12. Before the server-side release time, Exam Centre access is denied.
+13. At/after release, the backend checks authentication, role, lock/release state, server time, and SHA-256.
+14. It verifies blockchain metadata when enabled; only after checks pass does key protection/decryption occur.
+15. The PDF is returned and security-sensitive actions are audited.
+
+## Encryption and Integrity Workflow
+
+```text
+Original PDF → AES-256-GCM → Encrypted Artifact → SHA-256
+                                             ↓
+                       MongoDB Hash → Blockchain Hash (when enabled)
+                                             ↓
+                     Verification Before Decryption → KMS / Master-Key Protection
+                                             ↓
+                                   AES-GCM Decryption → PDF
+```
+
+SHA-256 is calculated over the encrypted artifact. Tampering changes the hash; the backend blocks release, does not decrypt, returns no PDF, and logs an audit/security event. Expected result: `INTEGRITY VERIFICATION FAILED`.
+
+Never store plaintext passwords, public plaintext question papers, PDF contents or AES keys on blockchain, AWS credentials in frontend code, or blockchain private keys in frontend code. Integrity verification precedes decryption.
+
+## Local Storage Mode
+
+Default development storage:
+
+```dotenv
+STORAGE_PROVIDER=local
+QUESTION_PAPER_MASTER_KEY=<locally-generated-base64-key>
+```
+
+The master key protects each per-paper key. Generate it locally:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Never commit this key, put it in frontend code, or include a real value in `.env.example`.
+
+## Optional AWS S3 + KMS Mode
+
+S3/KMS is configuration-dependent. The bucket must be private with Block Public Access enabled; only encrypted artifacts are stored. KMS protects key material, and the backend—not the frontend—performs AWS operations.
+
+```dotenv
+STORAGE_PROVIDER=s3
+AWS_REGION=<your-region>
+AWS_S3_BUCKET=<your-private-bucket>
+AWS_KMS_KEY_ID=<your-kms-key-id>
+```
+
+1. Create a private S3 bucket and enable Block Public Access.
+2. Create/select a KMS key and configure least-privilege IAM permissions.
+3. Set the environment variables and use the standard AWS credential provider chain.
+4. Start the backend and test encrypted upload and secure retrieval.
+
+Do not commit AWS credentials or expose them to the frontend.
+
+## MongoDB Setup
+
+MongoDB must run locally or be provided as a URI. It stores users, paper metadata, approvals, audit logs, revoked tokens, and security records—not plaintext PDFs.
+
+```dotenv
+# Example format only
+MONGO_URI=mongodb://127.0.0.1:27017/secure_question_paper_system
+```
+
+`MONGODB_URI` is also accepted for compatibility.
+
+## Blockchain / Hardhat Setup
+
+Blockchain is optional. For local development, the contract is [QuestionPaperRegistry.sol](blockchain/contracts/QuestionPaperRegistry.sol) and stores integrity metadata only—not PDFs, plaintext, AES/DEK keys, credentials, or application secrets.
+
+```bash
+cd blockchain
+npm install
+npx hardhat node
+```
+
+Keep the node running. In another terminal:
+
+```bash
+cd blockchain
+npx hardhat run scripts/deploy.js --network localhost
+```
+
+```dotenv
+BLOCKCHAIN_RPC_URL=http://127.0.0.1:8545
+BLOCKCHAIN_PRIVATE_KEY=<local-hardhat-account-private-key>
+CONTRACT_ADDRESS=<deployed-contract-address>
+```
+
+Use a local Hardhat key only. Never commit it, expose it to frontend code, or use production private keys in this repository.
+
+## Installation Requirements
 
 - Node.js and npm
-- MongoDB running locally or a configured MongoDB connection string
-- A modern browser
-- Optional for S3 mode: an AWS configuration with a private bucket and KMS key
-- Optional for blockchain mode: a local Hardhat node and deployed contract
+- MongoDB
+- Modern browser
+- Optional: AWS configuration for S3/KMS
+- Optional: Hardhat local node and deployed contract
 
-## 12. Installation Steps
+AWS and blockchain are not required for the default local setup.
 
-From `D:\Cloud-Computing -pro`:
+## Quick Start
+
+From the project root, in Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 npm run install:all
 ```
 
-The repository includes `package.json` and `package-lock.json` files at the root and in its application modules. Keep lock files committed; do not commit `node_modules`.
+The repository has separate frontend, backend, and blockchain package/lock files. Do not commit `node_modules`.
 
-## 13. Environment Configuration
+## Environment Configuration
 
-Create the root `.env` locally from `.env.example`. It must never be committed.
+Create `.env` locally from `.env.example`; never commit it. The example file contains safe placeholders only.
 
-For local encrypted storage, configure:
+| Variable | Purpose |
+| --- | --- |
+| `MONGO_URI` | MongoDB connection string. |
+| `JWT_SECRET` | JWT signing secret. |
+| `STORAGE_PROVIDER` | `local` or `s3`. |
+| `QUESTION_PAPER_MASTER_KEY` | Local-mode protection for per-paper keys. |
+| `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_KMS_KEY_ID` | S3/KMS configuration. |
+| `BLOCKCHAIN_RPC_URL`, `BLOCKCHAIN_PRIVATE_KEY`, `CONTRACT_ADDRESS` | Optional blockchain configuration. |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Locally configured Admin seed credentials. |
 
-```dotenv
-STORAGE_PROVIDER=local
-QUESTION_PAPER_MASTER_KEY=<locally generated secret>
-```
+Also see `PORT`, `FRONTEND_URL`, `MAX_QUESTION_PAPER_SIZE_MB`, and `QUESTION_PAPER_STORAGE_DIR` in `.env.example`.
 
-Generate a 32-byte Base64 master key locally without hardcoding or sharing its value:
+## Admin Seed Setup
 
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+npm run seed:admin --prefix backend
 ```
 
-For S3/KMS storage, set `STORAGE_PROVIDER=s3` and configure `AWS_REGION`, `AWS_S3_BUCKET`, and `AWS_KMS_KEY_ID`. AWS credential values are required only for S3 mode and should be supplied through the standard AWS credential provider chain, not committed to source control.
+The Admin is created from environment variables and the seed prevents unintended duplicates. Configure credentials locally; do not hard-code production passwords.
 
-For local blockchain development, configure placeholders with your own local values:
+## MFA / OTP Demo Mode
+
+OTP MFA uses cryptographically generated six-digit OTPs. The backend hashes each OTP before storing it, expires it after five minutes, consumes it after successful verification, and invalidates the previous OTP whenever a new OTP is resent.
+
+For a controlled college demonstration, set this **backend-only** variable in the project-root `.env`:
 
 ```dotenv
-BLOCKCHAIN_RPC_URL=http://127.0.0.1:8545
-BLOCKCHAIN_PRIVATE_KEY=<local Hardhat account private key>
-CONTRACT_ADDRESS=<deployed contract address>
+MFA_DISPLAY_OTP=true
 ```
 
-Also configure MongoDB, a strong `JWT_SECRET`, and the local Admin seed variables in `.env`. Never copy real values into `.env.example`, frontend code, documentation, or Git history.
+The login and resend responses then temporarily include the newly generated `demoOtp`, which the Verify OTP page displays in a clearly marked **DEMO MODE** card. The same original OTP is hashed and validated; the plaintext OTP is never saved in MongoDB, audit logs, URLs, browser storage, JWTs, or cookies.
 
-## 14. How to Run the Project
+For production, use:
 
-From `D:\Cloud-Computing -pro`, start the backend and frontend in separate terminals:
+```dotenv
+MFA_DISPLAY_OTP=false
+```
+
+In production, OTPs should be delivered through an appropriate secure channel such as email, SMS, an authenticator application, or an MFA provider. Do not use a `VITE_MFA_DISPLAY_OTP` setting: frontend variables are visible to browsers. Demo display is for a controlled project demonstration only, not a real security-sensitive deployment.
+
+## How to Run
+
+Run in separate terminals:
 
 ```bash
 npm run dev --prefix backend
@@ -164,112 +251,157 @@ npm run dev --prefix backend
 npm run dev --prefix frontend
 ```
 
-URLs:
-
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:5000`
-- Health endpoint: `http://localhost:5000/api/health`
+- Health: `http://localhost:5000/api/health`
 
-The Admin account is seeded from the root `.env` when needed:
+## Login and Role Workflows
 
-```bash
-npm run seed:admin --prefix backend
+Login flow: register with an allowed role, login with email/password, complete OTP verification, receive JWT, and arrive at the role-specific dashboard: `/admin/dashboard`, `/question-setter/dashboard`, `/reviewer/dashboard`, `/security-officer/dashboard`, `/exam-authority/dashboard`, or `/exam-center/dashboard`.
+
+- **Admin:** dashboard, users, Exam Centre creation, account status, audit logs, security activity. Admin alone creates Exam Centres.
+- **Question Setter:** register/login/MFA, draft/upload/submit, status and rejection reason, eligible revision. Submitted/approved/locked papers resist unauthorized modification.
+- **Reviewer:** eligible queue, claim, secure access, decision/rejection reason, history; self-review is blocked.
+- **Security Officer:** eligible queue, claim, security review/decision, and security/audit activity.
+- **Exam Authority:** security-approved review, final approval, locking, approval history, and schedule release. Only the locking authority can schedule.
+- **Exam Centre:** Admin-created account, safe metadata only, denied before time, then secure backend checks before decryption. The list endpoint does not decrypt or expose PDFs.
+
+## Scheduled Release
+
+Only `LOCKED` papers can be scheduled. The timestamp is server-side; browser time is not trusted; scheduling cannot be changed after it is set. Before the time, the current implementation denies release (typically `403`); at/after it, secure checks begin.
+
+```text
+Exam: 20 September 2026, 09:00 AM
+08:59 — ACCESS DENIED — PAPER LOCKED
+09:00 — authorization and integrity checks are performed
 ```
 
-## 15. Complete User Workflow
+## Blockchain Workflow
 
-1. An Admin account is seeded from local environment configuration; an Admin creates Exam Centre accounts.
-2. A Question Setter registers, completes MFA, creates a draft, uploads a valid PDF, and submits it.
-3. A Reviewer independently claims and approves or rejects the submitted paper.
-4. A Security Officer independently claims and approves or rejects the reviewer-approved paper.
-5. An Exam Authority independently claims and finally approves the security-approved paper. The paper becomes `LOCKED`.
-6. The locking Exam Authority schedules a release time for the locked paper.
-7. The Exam Centre sees only safe metadata for `LOCKED` papers in `SCHEDULED` or `RELEASED` release states.
-8. Before the scheduled time, the Exam Centre cannot access the PDF. At or after the scheduled time, it requests the existing secure release endpoint.
-9. The backend performs the applicable integrity, blockchain, key-protection, and decryption checks before returning the PDF.
+When enabled: locking verifies the artifact hash, anchors integrity metadata, waits for confirmation, stores safe transaction metadata, and verifies it during release. A mismatch blocks release/decryption. Blockchain is not file storage, encryption, password storage, or secret storage.
 
-## 16. Sample Input
+## API Overview
 
-Sample/demo workflow only; this does not claim that the sample PDF is included in the repository.
+| Area | Important endpoints |
+| --- | --- |
+| Authentication | `POST /api/auth/register`, `/login`, `/verify-otp`, `/resend-otp`, `/logout`; `GET /api/auth/me` |
+| Admin | `GET /api/admin/dashboard/stats`, `/users`, `/exam-centers`, `/audit-logs`; `POST /api/admin/exam-centers`; `PATCH /api/admin/users/:id/status` |
+| Question papers | `POST /api/question-papers`; `GET /:id`, `/:id/download`, `/:id/release`, `/exam-center`; `POST /:id/upload`, `/:id/submit`, `/:id/revise` |
+| Reviewer | `GET /api/reviewer/dashboard/stats`, `/question-papers`, `/:id`, `/:id/reviews`; `POST /:id/claim`, `/:id/approve`, `/:id/reject` |
+| Security Officer | `GET /api/security-officer/dashboard/stats`, `/question-papers`, `/:id`, `/:id/approvals`; `POST /:id/claim`, `/:id/approve`, `/:id/reject` |
+| Exam Authority | `GET /api/exam-authority/dashboard/stats`, `/question-papers`, `/:id`, `/:id/approvals`; `POST /:id/claim`, `/:id/approve`, `/:id/reject`, `/:id/schedule-release` |
+| Health | `GET /api/health` |
+
+Protected endpoints require authentication and the applicable role.
+
+## Project Structure
+
+```text
+frontend/src/components  layouts and route protection
+frontend/src/pages       role-specific screens
+frontend/src/context     authentication context
+frontend/src/services    API client
+frontend/src/utils       helpers
+backend/src/controllers  request handlers
+backend/src/models       MongoDB models
+backend/src/routes       REST routes
+backend/src/middleware   auth, RBAC, upload, errors, rate limits
+backend/src/services     encryption, storage, blockchain services
+backend/src/config       configuration
+backend/src/scripts      seed/maintenance scripts
+backend/test             backend tests
+blockchain/contracts     Solidity contract
+blockchain/scripts       deployment
+blockchain/test          contract tests
+```
+
+## Database / Data Models
+
+| Model | Purpose |
+| --- | --- |
+| `User` | Identity, role, password hash, MFA data, active status, creator, login timestamp. |
+| `QuestionPaper` | Metadata, encrypted storage/integrity/blockchain data, lifecycle, assignments, lock, release state. |
+| `QuestionPaperApproval` | Security Officer/Exam Authority claim, decision, lock history. |
+| `QuestionPaperReview` | Reviewer claim, decision, revision history. |
+| `AuditLog` | Security-relevant actor/action/target/IP/user-agent/metadata/time records. |
+| `RevokedToken` | Revoked JWT identifiers with expiry. |
+
+## Testing
+
+```bash
+npm run build --prefix frontend
+npm test --prefix backend
+cd backend
+node --test --test-concurrency=1 test/*.test.js
+```
+
+The already verified project state is **48 tests: 48 passed, 0 failed**. Coverage includes authentication, MFA, RBAC, Admin protections, ownership, encryption, S3/KMS, all approval stages, locking, scheduled release, Exam Centre access, SHA-256/blockchain verification, and fail-closed behavior. The frontend production build passed; normal React Router `use client` warnings may appear.
+
+## Security Test: Tampering Demonstration
+
+1. Upload a paper; it is encrypted and SHA-256 integrity data is stored.
+2. Modify the encrypted artifact in a controlled development environment.
+3. Attempt secure release; the backend recalculates SHA-256.
+4. The mismatch blocks release: no KMS decryption, no AES decryption, no PDF, and an audit/security event.
+
+```text
+INTEGRITY VERIFICATION FAILED
+Result: Release blocked
+```
+
+## Error Handling
+
+| Status | Meaning |
+| --- | --- |
+| `401` | Authentication required, invalid/expired/revoked token, or inactive account. |
+| `403` | Permission denied or a paper is unavailable for release. |
+| `409` | Invalid state transition, such as modifying a submitted paper. |
+| `422` | Integrity/blockchain verification or secure decryption/release failure. |
+| `500` | Internal server error. |
+
+The current release implementation uses `403`/ `422` rather than a `423` response.
+
+## Security Considerations
+
+The system applies bcrypt password hashing, MFA, JWT/revocation, backend RBAC, input/file validation and size limits, Helmet, CORS, rate limiting, AES-256-GCM, SHA-256, private storage, optional KMS, audit logging, fail-closed integrity behavior, and server-side time validation. No plaintext papers are placed in public storage; no secrets are placed in frontend or blockchain code.
+
+## Environment / Secret Safety
+
+Never commit `.env`, AWS credentials, JWT secrets, master keys, blockchain private keys, production credentials, question-paper files, `node_modules`, build output, logs, database files, or local encrypted artifacts. `.env.example` contains placeholders only.
+
+## Sample Input and Output
+
+Demonstration data only; no sample PDF is required in the repository.
 
 ```text
 Question Paper
 Title: WEB
 Exam: SEM-5
 Subject: WEB-TECH
-PDF: Abi-Web-12.pdf
+PDF: sample-question-paper.pdf
+
+Before release: Status LOCKED | Release SCHEDULED | Access DENIED
+After release:  Status RELEASED | Integrity VERIFIED | Secure PDF access granted
+Tampering:      INTEGRITY VERIFICATION FAILED | Release blocked
 ```
 
-The Question Setter submits the paper. The Reviewer and Security Officer approve it. The Exam Authority approves and locks it, then schedules its release. The Exam Centre accesses it after the scheduled time.
+## College Demo Procedure
 
-## 17. Sample Output
+1. Start MongoDB, configure `.env`, seed Admin, then start backend and frontend.
+2. Create/register required users; Admin creates the Exam Centre.
+3. Question Setter creates, uploads, and submits a paper.
+4. Reviewer approves; Security Officer approves; Exam Authority approves/locks and schedules.
+5. Try Exam Centre access before time (expected: denied).
+6. At release time, request the paper (expected: authorization/integrity checks then secure release).
+7. Demonstrate controlled ciphertext tampering (expected: verification failure and blocked release).
 
-Sample/demo output:
+## Future Enhancements
 
-```text
-Status: LOCKED
-Scheduled release: <example date/time>
+Not currently claimed: production OTP delivery, email/SMS notifications, richer monitoring, pagination/filtering, infrastructure as code, deployment automation, advanced audit reporting, production-grade key management, and additional security monitoring.
 
-After release
-Status: RELEASED
-Result: Secure PDF access granted after integrity and authorization checks.
-```
+## Important Notes
 
-## 18. API/module overview
-
-| Module | Selected endpoints / purpose |
-| --- | --- |
-| Health | `GET /api/health` verifies backend availability. |
-| Authentication | `/api/auth/register`, `/login`, `/verify-otp`, `/resend-otp`, `/logout`, and `/me`. |
-| Administration | `/api/admin/dashboard/stats`, users, Exam Centres, and audit-log endpoints. |
-| Question papers | Authenticated creation, upload, submit, revise, protected download, and secure `GET /api/question-papers/:id/release`. |
-| Reviewer | Dashboard, eligible-paper queue, claim/decision, and review history endpoints. |
-| Security Officer | Dashboard, claim/decision, and approval history endpoints. |
-| Exam Authority | Dashboard, final claim/decision, approval history, and release scheduling. |
-| Exam Centre | `GET /api/question-papers/exam-center` returns safe releasable-paper metadata only. |
-| Blockchain | Hardhat contract and deployment tooling under `blockchain/`; it anchors integrity metadata, not document contents. |
-
-## 19. Testing and Verification
-
-Run the frontend production build:
-
-```bash
-npm run build --prefix frontend
-```
-
-Run backend tests:
-
-```bash
-npm test --prefix backend
-```
-
-Run the full backend regression serially from `backend/`:
-
-```bash
-node --test --test-concurrency=1 test/*.test.js
-```
-
-The suite covers authentication/MFA/RBAC, encrypted storage, approval workflow, scheduling, Exam Centre listing, secure release, and blockchain verification behavior.
-
-## 20. Security Considerations
-
-- Do not commit `.env`, database files, local encrypted artifacts, build output, logs, or `node_modules`.
-- Keep the S3 bucket private and use least-privilege IAM permissions.
-- Do not place secrets, KMS material, blockchain private keys, or PDFs in frontend code or blockchain contracts.
-- Use local development OTP output only for development; production delivery needs an appropriate secure OTP channel.
-- Treat backend authorization and release checks as the final authority; frontend controls are not security boundaries.
-
-## 21. Important Notes
-
-- MongoDB must be available locally or configured using environment variables; this repository does not include a database dump or database credentials.
-- The Exam Centre list endpoint does not retrieve, decrypt, or expose PDF data. The secure release endpoint is the only PDF-release mechanism.
-- Blockchain verification is configuration-dependent. When blockchain is disabled, the corresponding release path does not call blockchain verification.
-- Generated Hardhat artifacts and frontend build output are reproducible and should not be committed.
-
-## 22. Future Enhancements
-
-- Production OTP delivery integration.
-- Configurable notification reminders for scheduled releases.
-- Paginated/filterable Exam Centre paper views.
-- Deployment automation and infrastructure-as-code.
-- Additional operational monitoring and audit reporting.
+- MongoDB must be available; this repository has no database dump or real credentials.
+- Local encrypted storage supports development; S3/KMS and blockchain are optional/configuration-dependent.
+- Blockchain stores metadata only, never question-paper content.
+- Generated artifacts should not be committed, and `.env` must never be committed.
