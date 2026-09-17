@@ -1,0 +1,1 @@
+async function main() { const Factory = await ethers.getContractFactory('QuestionPaperRegistry'); const registry = await Factory.deploy(); await registry.waitForDeployment(); console.log(`QuestionPaperRegistry deployed: ${await registry.getAddress()}`); } main().catch(error => { console.error(error); process.exitCode = 1; });

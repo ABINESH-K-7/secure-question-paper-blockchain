@@ -1,0 +1,12 @@
+const express = require('express');
+const controller = require('../controllers/adminController');
+const { authenticateUser, authorizeRoles } = require('../middleware/authenticateUser');
+const router = express.Router();
+router.use(authenticateUser, authorizeRoles('ADMIN'));
+router.get('/dashboard/stats', controller.dashboardStats);
+router.get('/users', controller.listUsers);
+router.post('/exam-centers', controller.createExamCenter);
+router.get('/exam-centers', controller.listExamCenters);
+router.patch('/users/:id/status', controller.updateStatus);
+router.get('/audit-logs', controller.listAuditLogs);
+module.exports = router;

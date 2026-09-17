@@ -1,0 +1,31 @@
+{
+  "name": "question-paper-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "seed:admin": "node src/scripts/seedAdmin.js",
+    "migrate:encrypt-question-papers": "node src/scripts/encryptExistingQuestionPapers.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-kms": "^3.1132.0",
+    "@aws-sdk/client-s3": "^3.1132.0",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.17.0",
+    "express": "^4.22.3",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "multer": "^2.4.0",
+    "secure-question-paper-management-system": "file:.."
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

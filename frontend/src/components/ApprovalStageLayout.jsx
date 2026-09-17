@@ -1,0 +1,4 @@
+import React from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+export default function ApprovalStageLayout({ role, base, title }) { const { user, logout } = useAuth(); const navigate = useNavigate(); async function signOut() { await logout(); navigate('/login'); } return <div className="admin-shell"><aside className="admin-sidebar"><p className="eyebrow">SECURE EXAM PLATFORM</p><h2>{title}</h2><nav><NavLink to={`${base}/dashboard`}>Dashboard</NavLink><NavLink to={`${base}/papers`}>Papers for Review</NavLink></nav><button className="secondary" onClick={signOut}>Logout</button></aside><main className="admin-main"><header className="admin-header"><div><strong>Secure Question Papers</strong><p>{user.name} · {role}</p></div></header><Outlet /></main></div>; }

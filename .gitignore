@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+**/dist/
+build/
+**/build/
+
+# Test / coverage
+coverage/
+**/coverage/
+
+# Local environment configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Encrypted local question-paper artifacts
+backend/storage/question-papers/*
+!backend/storage/question-papers/.gitkeep
+
+# Generated blockchain and temporary files
+artifacts/
+**/artifacts/
+cache/
+**/cache/
+tmp/
+**/tmp/
+temp/
+**/temp/
+*.tmp
+*.log
+logs/
+**/logs/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,16 @@
+const express = require('express');
+const controller = require('../controllers/questionPaperController');
+const { authenticateUser, authorizeRoles } = require('../middleware/authenticateUser');
+const { uploadQuestionPaper } = require('../middleware/questionPaperUpload');
+const router = express.Router();
+router.use(authenticateUser);
+router.route('/').get(authorizeRoles('QUESTION_SETTER'), controller.listPapers).post(authorizeRoles('QUESTION_SETTER'), controller.createPaper);
+router.get('/exam-center', authorizeRoles('EXAM_CENTER'), controller.listExamCenterPapers);
+router.get('/:id', authorizeRoles('QUESTION_SETTER'), controller.getPaper);
+router.post('/:id/upload', authorizeRoles('QUESTION_SETTER'), uploadQuestionPaper, controller.uploadPaper);
+router.get('/:id/download', authorizeRoles('QUESTION_SETTER', 'REVIEWER', 'SECURITY_OFFICER', 'EXAM_AUTHORITY'), controller.downloadPaper);
+router.get('/:id/release', authorizeRoles('EXAM_CENTER'), controller.releasePaper);
+router.post('/:id/submit', authorizeRoles('QUESTION_SETTER'), controller.submitPaper);
+router.post('/:id/revise', authorizeRoles('QUESTION_SETTER'), controller.revisePaper);
+router.delete('/:id', authorizeRoles('QUESTION_SETTER'), controller.deletePaper);
+module.exports = router;
