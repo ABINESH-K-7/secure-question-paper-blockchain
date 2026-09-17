@@ -54,6 +54,8 @@ test('demo OTP is returned only when the backend demo mode is enabled', async ()
     const otps = [123456, 654321]; crypto.randomInt = () => otps.shift(); process.env.MFA_DISPLAY_OTP = 'true';
     const displayed = await request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: 'Password123' }) });
     assert.equal(displayed.status, 200); assert.match(displayed.body.demoOtp, /^[0-9]{6}$/); assert.equal(displayed.body.demoOtp, '123456');
+    const storedChallenge = await User.findById(displayed.body.challengeId).select('+mfaCodeHash');
+    assert.ok(storedChallenge.mfaCodeHash.startsWith('$2')); assert.notEqual(storedChallenge.mfaCodeHash, displayed.body.demoOtp); assert.equal(await bcrypt.compare(displayed.body.demoOtp, storedChallenge.mfaCodeHash), true);
     const resent = await request('/auth/resend-otp', { method: 'POST', body: JSON.stringify({ challengeId: displayed.body.challengeId }) });
     assert.equal(resent.status, 200); assert.match(resent.body.demoOtp, /^[0-9]{6}$/); assert.equal(resent.body.demoOtp, '654321');
     assert.equal((await request('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ challengeId: displayed.body.challengeId, otp: displayed.body.demoOtp }) })).status, 401);

@@ -24,7 +24,7 @@ module.exports = {
   port: Number(process.env.PORT) || 5000,
   mongoUri: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/secure_question_papers',
   nodeEnv,
-  mfaDisplayOtpEnabled: () => nodeEnv !== 'production' && process.env.MFA_DISPLAY_OTP === 'true',
+  mfaDisplayOtpEnabled: () => process.env.MFA_DISPLAY_OTP === 'true',
   trustProxy: trustProxy(),
   validateProductionEnvironment,
   jwtSecret: process.env.JWT_SECRET,

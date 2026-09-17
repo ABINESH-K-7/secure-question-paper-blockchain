@@ -9,8 +9,10 @@ function runConfig(script, env) {
   return stripAnsi(execFileSync(process.execPath, ['-e', script], { cwd: backendRoot, env: { ...process.env, ...env }, encoding: 'utf8' })).trim();
 }
 
-test('production never enables MFA demo OTP disclosure', () => {
-  assert.equal(runConfig("console.log(require('./src/config/env').mfaDisplayOtpEnabled())", { NODE_ENV: 'production', MFA_DISPLAY_OTP: 'true' }), 'false');
+test('MFA demo OTP disclosure is controlled explicitly by MFA_DISPLAY_OTP', () => {
+  const script = "console.log(require('./src/config/env').mfaDisplayOtpEnabled())";
+  assert.equal(runConfig(script, { NODE_ENV: 'production', MFA_DISPLAY_OTP: 'true' }), 'true');
+  assert.equal(runConfig(script, { NODE_ENV: 'production', MFA_DISPLAY_OTP: 'false' }), 'false');
 });
 
 test('production validation requires complete blockchain configuration only when enabled', () => {
