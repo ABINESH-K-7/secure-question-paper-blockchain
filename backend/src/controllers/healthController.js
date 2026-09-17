@@ -5,6 +5,11 @@ function getHealth(_request, response) {
     timestamp: new Date().toISOString(),
   });
 }
+function getReady(_request, response) {
+  const ready = mongoose.connection.readyState === 1;
+  response.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready' });
+}
 
-module.exports = { getHealth };
+module.exports = { getHealth, getReady };
+const mongoose = require('mongoose');
 

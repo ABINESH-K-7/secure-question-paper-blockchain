@@ -169,7 +169,7 @@ npx hardhat run scripts/deploy.js --network localhost
 ```dotenv
 BLOCKCHAIN_RPC_URL=http://127.0.0.1:8545
 BLOCKCHAIN_PRIVATE_KEY=<local-hardhat-account-private-key>
-CONTRACT_ADDRESS=<deployed-contract-address>
+BLOCKCHAIN_CONTRACT_ADDRESS=<deployed-contract-address>
 ```
 
 Use a local Hardhat key only. Never commit it, expose it to frontend code, or use production private keys in this repository.
@@ -405,3 +405,42 @@ Not currently claimed: production OTP delivery, email/SMS notifications, richer 
 - Local encrypted storage supports development; S3/KMS and blockchain are optional/configuration-dependent.
 - Blockchain stores metadata only, never question-paper content.
 - Generated artifacts should not be committed, and `.env` must never be committed.
+
+## Deployment
+
+### Local development
+
+Use Node.js **20.x or 22.x** (`>=20 <23`), MongoDB, and the project-root `.env`. Configure the public frontend API URL in `frontend/.env` with `VITE_API_BASE_URL=http://localhost:5000/api`.
+
+Hardhat localhost is for development only. `MFA_DISPLAY_OTP=true` is allowed only for a controlled college demonstration; the backend never returns a demo OTP when `NODE_ENV=production`.
+
+### Production architecture and configuration
+
+Deploy the Vite build behind HTTPS, with a Node/Express API, managed MongoDB, private S3/KMS storage, and, when enabled, a reachable blockchain RPC plus deployed contract. Set backend values through a deployment secret manager:
+
+```dotenv
+NODE_ENV=production
+MONGO_URI=<managed-mongodb-uri>
+JWT_SECRET=<secret>
+STORAGE_PROVIDER=s3
+AWS_REGION=<region>
+AWS_S3_BUCKET=<private-bucket>
+AWS_KMS_KEY_ID=<kms-key-id>
+FRONTEND_URL=https://your-frontend-domain
+TRUST_PROXY=1
+MFA_DISPLAY_OTP=false
+BLOCKCHAIN_ENABLED=true
+BLOCKCHAIN_RPC_URL=<reachable-rpc-url>
+BLOCKCHAIN_PRIVATE_KEY=<backend-only-key>
+BLOCKCHAIN_CONTRACT_ADDRESS=<deployed-contract-address>
+```
+
+Use `VITE_API_BASE_URL=https://api.example.com/api` only as a public frontend build variable. Never put backend secrets in `VITE_*` variables. `FRONTEND_URL` must be the exact allowed frontend origin; do not use wildcard CORS in production. `TRUST_PROXY` must match the actual reverse-proxy/load-balancer hop count, or be `false` when no proxy is trusted.
+
+Build and start with `npm ci --prefix frontend`, `npm run build --prefix frontend`, `npm ci --prefix backend`, then `npm run start --prefix backend`.
+
+For blockchain production mode, deploy the Solidity contract separately and configure the reachable RPC and `BLOCKCHAIN_CONTRACT_ADDRESS`; do not use a Hardhat development key. Keep S3 private with Block Public Access, least-privilege IAM, and KMS access only on the backend. The API verifies integrity before KMS/AES decryption and does not issue permanent public file URLs.
+
+`GET /api/health` is a liveness endpoint. `GET /api/ready` verifies MongoDB readiness and returns `200` only when connected, otherwise `503`, without secrets. Production startup validates required configuration and exits if MongoDB is unavailable. Critical paper-security actions fail closed when their audit record cannot be persisted; ordinary audit failures are logged.
+
+Back up MongoDB and encrypted storage, monitor API/audit/security logs, and use secure production OTP delivery. The bundled rate limiter is process-local and intended for a single backend instance; use shared rate-limit storage before horizontal scaling.
